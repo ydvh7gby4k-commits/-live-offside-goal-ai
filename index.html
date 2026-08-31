@@ -1,322 +1,198 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Live Football AI Referee</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>REFEREE AI</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
 <style>
 body{
-margin:0;
-background:#0d1117;
-color:white;
-font-family:-apple-system,BlinkMacSystemFont,sans-serif
+    margin:0;
+    background:#101010;
+    color:white;
+    font-family:Arial;
+    text-align:center;
 }
 
-main{
-max-width:900px;
-margin:auto;
-padding:14px
+h1{
+    margin:15px;
 }
 
-#wrap{
-position:relative;
-background:#000;
-border-radius:15px;
-overflow:hidden
+#video{
+    width:95%;
+    max-width:900px;
+    border-radius:15px;
 }
 
-video,canvas{
-width:100%;
-display:block
-}
-
-canvas{
-position:absolute;
-left:0;
-top:0
+#canvas{
+    position:absolute;
+    left:2.5%;
+    top:70px;
+    width:95%;
+    max-width:900px;
 }
 
 button{
-border:0;
-border-radius:11px;
-padding:13px 8px;
-font-size:15px;
-font-weight:700;
-background:#252b34;
-color:white
+    padding:14px 18px;
+    margin:8px;
+    border:0;
+    border-radius:10px;
+    font-size:16px;
+    font-weight:bold;
 }
 
-.grid{
-display:grid;
-grid-template-columns:1fr 1fr;
-gap:8px;
-margin-top:10px
+.start{
+    background:#00c853;
+    color:white;
 }
 
-#start{
-background:#168a48
-}
-
-#stop{
-background:#b93636
-}
-
-#result{
-margin-top:12px;
-padding:14px;
-border-radius:14px;
-background:#202630;
-text-align:center
-}
-
-#decision{
-font-size:25px;
-font-weight:800
-}
-
-.small{
-font-size:12px;
-opacity:.7;
-line-height:1.45
+#status{
+    margin:15px;
+    font-size:18px;
 }
 </style>
 </head>
 
 <body>
 
-<main>
+<h1>⚽ REFEREE AI</h1>
 
-<h1>⚽ Live Football AI Referee</h1>
-
-<p class="small">
-iPhone kamerasi orqali futbolni jonli kuzatish.
-</p>
-
-<div id="wrap">
-
-<video id="v" playsinline autoplay muted></video>
-
-<canvas id="c"></canvas>
-
-</div>
-
-<div class="grid">
-
-<button id="start">
-📷 Kamerani boshlash
+<button class="start" onclick="startAI()">
+📷 KAMERANI YOQISH
 </button>
-
-<button id="stop">
-⏹ To‘xtatish
-</button>
-
-</div>
-
-<div id="result">
-
-<div id="decision">
-READY
-</div>
 
 <div id="status">
-Kamerani boshlang
+🤖 AI yuklanmoqda...
 </div>
 
+<div style="position:relative;">
+    <video id="video" autoplay playsinline></video>
+    <canvas id="canvas"></canvas>
 </div>
-
-<h3>⚽ Qarorlar</h3>
-
-<div class="grid">
-
-<button onclick="D('🚩 OFFSIDE','Offside')">
-🚩 OFFSIDE
-</button>
-
-<button onclick="D('🟢 ON-SIDE','Offside yo‘q')">
-🟢 ON-SIDE
-</button>
-
-<button onclick="D('⚽ GOAL','Gol')">
-⚽ GOAL
-</button>
-
-<button onclick="D('❌ NO GOAL','Gol emas')">
-❌ NO GOAL
-</button>
-
-<button onclick="D('↔️ OUT / THROW-IN','Aut')">
-↔️ OUT
-</button>
-
-<button onclick="D('🚩 CORNER','Burchak')">
-🚩 CORNER
-</button>
-
-<button onclick="D('🟩 FREE KICK','Jarima zarbasi')">
-🟩 FREE KICK
-</button>
-
-<button onclick="D('🟥 PENALTY','Penalti')">
-🟥 PENALTY
-</button>
-
-</div>
-
-<p class="small">
-⚠️ Bu prototip. Bitta telefon kamerasi professional VAR/GLT kabi 100% aniq qaror bera olmaydi.
-</p>
-
-</main>
 
 <script>
 
-const v=document.getElementById('v');
+const video = document.getElementById("video");
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
 
-const c=document.getElementById('c');
+let model;
 
-const x=c.getContext('2d');
+async function loadAI(){
 
-let s=null;
+    document.getElementById("status").innerText =
+        "🤖 AI model yuklanmoqda...";
 
-let r;
+    model = await cocoSsd.load();
 
-async function start(){
-
-try{
-
-s=await navigator.mediaDevices.getUserMedia({
-
-video:{
-facingMode:{ideal:'environment'},
-width:{ideal:1280},
-height:{ideal:720}
-},
-
-audio:false
-
-});
-
-v.srcObject=s;
-
-await v.play();
-
-size();
-
-draw();
-
-status.textContent=
-'🟢 LIVE — kamera ishlayapti';
+    document.getElementById("status").innerText =
+        "✅ AI tayyor";
 
 }
 
-catch(e){
+async function startAI(){
 
-status.textContent=
-'❌ Kamera ochilmadi: '+e.message;
+    try{
 
-}
+        const stream =
+        await navigator.mediaDevices.getUserMedia({
+            video:{
+                facingMode:"environment",
+                width:{ideal:1280},
+                height:{ideal:720}
+            },
+            audio:false
+        });
 
-}
+        video.srcObject = stream;
 
-function size(){
+        video.onloadedmetadata = () => {
 
-c.width=v.videoWidth||1280;
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
 
-c.height=v.videoHeight||720;
+            detect();
 
-}
+        };
 
-function draw(){
+    }catch(error){
 
-if(v.readyState>=2){
+        document.getElementById("status").innerText =
+            "❌ Kameraga ruxsat berilmadi";
 
-if(
-c.width!=v.videoWidth||
-c.height!=v.videoHeight
-){
-
-size();
-
-}
-
-x.clearRect(
-0,
-0,
-c.width,
-c.height
-);
-
-let y=c.height*.72;
-
-x.strokeStyle='#00e5ff';
-
-x.lineWidth=
-Math.max(3,c.width/320);
-
-x.beginPath();
-
-x.moveTo(
-c.width*.08,
-y
-);
-
-x.lineTo(
-c.width*.92,
-y
-);
-
-x.stroke();
-
-x.fillStyle='#00e5ff';
-
-x.font=
-'bold '+
-Math.max(16,c.width/38)+
-'px sans-serif';
-
-x.fillText(
-'GOAL-LINE GUIDE',
-c.width*.08,
-y-12
-);
+    }
 
 }
 
-r=requestAnimationFrame(draw);
+async function detect(){
+
+    if(!model){
+        requestAnimationFrame(detect);
+        return;
+    }
+
+    const predictions =
+        await model.detect(video);
+
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    let players = 0;
+    let balls = 0;
+
+    predictions.forEach(prediction => {
+
+        const [x,y,width,height] =
+            prediction.bbox;
+
+        if(prediction.class === "person"){
+            players++;
+        }
+
+        if(prediction.class === "sports ball"){
+            balls++;
+        }
+
+        ctx.strokeStyle = "#00ff00";
+        ctx.lineWidth = 3;
+
+        ctx.strokeRect(
+            x,
+            y,
+            width,
+            height
+        );
+
+        ctx.fillStyle = "#00ff00";
+        ctx.font = "18px Arial";
+
+        ctx.fillText(
+            prediction.class +
+            " " +
+            Math.round(prediction.score*100) +
+            "%",
+            x,
+            y > 20 ? y-5 : y+20
+        );
+
+    });
+
+    document.getElementById("status").innerText =
+        "👤 Futbolchilar: " + players +
+        "   ⚽ To‘p: " + balls;
+
+    requestAnimationFrame(detect);
 
 }
 
-function stop(){
-
-if(r)
-cancelAnimationFrame(r);
-
-if(s)
-s.getTracks().forEach(
-t=>t.stop()
-);
-
-s=null;
-
-v.srcObject=null;
-
-status.textContent=
-'Kamera o‘chirilgan';
-
-}
-
-function D(a,b){
-
-decision.textContent=a;
-
-status.textContent=b;
-
-}
-
-start.onclick=start;
-
-stop.onclick=stop;
+loadAI();
 
 </script>
 
