@@ -2,56 +2,56 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>REFEREE AI</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
 
 <style>
+*{box-sizing:border-box}
 body{
-    margin:0;
-    background:#101010;
-    color:white;
-    font-family:Arial;
-    text-align:center;
+ margin:0;background:#080b10;color:#fff;
+ font-family:Arial;text-align:center
 }
-
-h1{
-    margin:15px;
+h1{margin:15px 0 5px}
+#status{margin:10px;font-size:16px}
+.camera{
+ position:relative;width:96%;max-width:1000px;
+ margin:auto;background:#000;border-radius:15px;overflow:hidden
 }
-
-#video{
-    width:95%;
-    max-width:900px;
-    border-radius:15px;
+video{display:block;width:100%}
+canvas{
+ position:absolute;left:0;top:0;width:100%;height:100%
 }
-
-#canvas{
-    position:absolute;
-    left:2.5%;
-    top:70px;
-    width:95%;
-    max-width:900px;
+#goalLine{
+ display:none;position:absolute;left:0;right:0;
+ bottom:12%;height:5px;background:red;
+ box-shadow:0 0 15px red
 }
-
 button{
-    padding:14px 18px;
-    margin:8px;
-    border:0;
-    border-radius:10px;
-    font-size:16px;
-    font-weight:bold;
+ border:0;border-radius:10px;padding:13px 15px;
+ margin:4px;font-weight:bold;font-size:14px
 }
-
-.start{
-    background:#00c853;
-    color:white;
+.on{background:#00a86b;color:white}
+.off{background:#d50000;color:white}
+.goal{background:#087f23;color:white}
+.no{background:#b71c1c;color:white}
+.orange{background:#ff9800}
+.blue{background:#1976d2;color:white}
+.purple{background:#7b1fa2;color:white}
+.gray{background:#607d8b;color:white}
+.yellow{background:#ffd600}
+.red{background:#d50000;color:white}
+#decision{
+ margin:12px auto;padding:15px;
+ max-width:600px;border-radius:12px;
+ background:#151b22;font-size:22px;font-weight:bold
 }
-
-#status{
-    margin:15px;
-    font-size:18px;
+#timer{font-size:35px;margin:10px}
+.event{
+ max-width:600px;margin:5px auto;padding:10px;
+ background:#171d24;border-radius:8px;text-align:left
 }
 </style>
 </head>
@@ -60,136 +60,218 @@ button{
 
 <h1>⚽ REFEREE AI</h1>
 
-<button class="start" onclick="startAI()">
-📷 KAMERANI YOQISH
-</button>
+<div id="status">🤖 AI yuklanmoqda...</div>
 
-<div id="status">
-🤖 AI yuklanmoqda...
+<div class="camera">
+ <video id="video" autoplay playsinline></video>
+ <canvas id="canvas"></canvas>
+ <div id="goalLine"></div>
 </div>
 
-<div style="position:relative;">
-    <video id="video" autoplay playsinline></video>
-    <canvas id="canvas"></canvas>
+<div>
+ <button class="on" onclick="startCamera()">📷 KAMERA YOQISH</button>
+ <button class="off" onclick="stopCamera()">⛔ KAMERA O‘CHIRISH</button>
+ <button class="blue" onclick="toggleGoalLine()">🥅 GOAL LINE</button>
 </div>
+
+<div id="decision">🤖 AI: KUTILMOQDA</div>
+
+<div id="timer">00:00</div>
+<button onclick="startTimer()">▶ START</button>
+<button onclick="stopTimer()">⏸ STOP</button>
+<button onclick="resetTimer()">🔄 RESET</button>
+
+<h2>Hakam qarori</h2>
+
+<button class="goal" onclick="decision('⚽ GOAL')">⚽ GOAL</button>
+<button class="no" onclick="decision('❌ NO GOAL')">❌ NO GOAL</button>
+<button class="orange" onclick="decision('🚩 OFFSIDE')">🚩 OFFSIDE</button>
+<button class="gray" onclick="decision('↔️ OUT')">↔️ OUT</button>
+<button class="purple" onclick="decision('🥅 CORNER')">🥅 CORNER</button>
+<button onclick="decision('🟢 FOUL')">🟢 FOUL</button>
+<button class="yellow" onclick="decision('🟨 YELLOW CARD')">🟨 YELLOW</button>
+<button class="red" onclick="decision('🟥 RED CARD')">🟥 RED</button>
+
+<h2>📋 O‘yin voqealari</h2>
+<div id="events"></div>
 
 <script>
 
-const video = document.getElementById("video");
-const canvas = document.getElementById("canvas");
-const ctx = canvas.getContext("2d");
+let stream=null;
+let model=null;
+let detecting=false;
+let seconds=0;
+let timer=null;
 
-let model;
+const video=document.getElementById("video");
+const canvas=document.getElementById("canvas");
+const ctx=canvas.getContext("2d");
 
 async function loadAI(){
 
-    document.getElementById("status").innerText =
-        "🤖 AI model yuklanmoqda...";
+ try{
+  model=await cocoSsd.load();
 
-    model = await cocoSsd.load();
+  document.getElementById("status").innerText=
+  "✅ AI tayyor — kamera yoqing";
 
-    document.getElementById("status").innerText =
-        "✅ AI tayyor";
+ }catch(e){
+
+  document.getElementById("status").innerText=
+  "❌ AI yuklanmadi";
+ }
 
 }
 
-async function startAI(){
+async function startCamera(){
 
-    try{
+ if(stream)return;
 
-        const stream =
-        await navigator.mediaDevices.getUserMedia({
-            video:{
-                facingMode:"environment",
-                width:{ideal:1280},
-                height:{ideal:720}
-            },
-            audio:false
-        });
+ try{
 
-        video.srcObject = stream;
+  stream=await navigator.mediaDevices.getUserMedia({
+   video:{
+    facingMode:{ideal:"environment"},
+    width:{ideal:1280},
+    height:{ideal:720}
+   },
+   audio:false
+  });
 
-        video.onloadedmetadata = () => {
+  video.srcObject=stream;
 
-            canvas.width = video.videoWidth;
-            canvas.height = video.videoHeight;
+  video.onloadedmetadata=()=>{
 
-            detect();
+   canvas.width=video.videoWidth;
+   canvas.height=video.videoHeight;
 
-        };
+   detecting=true;
+   detect();
 
-    }catch(error){
+  };
 
-        document.getElementById("status").innerText =
-            "❌ Kameraga ruxsat berilmadi";
+  document.getElementById("status").innerText=
+  "🟢 KAMERA ISHLAYAPTI";
 
-    }
+ }catch(e){
 
+  document.getElementById("status").innerText=
+  "❌ Kameraga ruxsat berilmadi";
+ }
+
+}
+
+function stopCamera(){
+
+ detecting=false;
+
+ if(stream){
+  stream.getTracks().forEach(t=>t.stop());
+  stream=null;
+ }
+
+ video.srcObject=null;
+
+ ctx.clearRect(0,0,canvas.width,canvas.height);
+
+ document.getElementById("status").innerText=
+ "📷 Kamera o‘chiq";
 }
 
 async function detect(){
 
-    if(!model){
-        requestAnimationFrame(detect);
-        return;
-    }
+ if(!detecting || !model)return;
 
-    const predictions =
-        await model.detect(video);
+ const predictions=await model.detect(video);
 
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
+ ctx.clearRect(0,0,canvas.width,canvas.height);
 
-    let players = 0;
-    let balls = 0;
+ let players=0;
+ let balls=0;
 
-    predictions.forEach(prediction => {
+ predictions.forEach(p=>{
 
-        const [x,y,width,height] =
-            prediction.bbox;
+  const [x,y,w,h]=p.bbox;
 
-        if(prediction.class === "person"){
-            players++;
-        }
+  if(p.class==="person")players++;
+  if(p.class==="sports ball")balls++;
 
-        if(prediction.class === "sports ball"){
-            balls++;
-        }
+  ctx.strokeStyle="#00ff00";
+  ctx.lineWidth=3;
+  ctx.strokeRect(x,y,w,h);
 
-        ctx.strokeStyle = "#00ff00";
-        ctx.lineWidth = 3;
+  ctx.fillStyle="#00ff00";
+  ctx.font="18px Arial";
 
-        ctx.strokeRect(
-            x,
-            y,
-            width,
-            height
-        );
+  ctx.fillText(
+   p.class+" "+Math.round(p.score*100)+"%",
+   x,
+   Math.max(18,y-5)
+  );
 
-        ctx.fillStyle = "#00ff00";
-        ctx.font = "18px Arial";
+ });
 
-        ctx.fillText(
-            prediction.class +
-            " " +
-            Math.round(prediction.score*100) +
-            "%",
-            x,
-            y > 20 ? y-5 : y+20
-        );
+ document.getElementById("status").innerText=
+ "👤 Futbolchilar: "+players+
+ " | ⚽ To‘p: "+balls;
 
-    });
+ requestAnimationFrame(detect);
+}
 
-    document.getElementById("status").innerText =
-        "👤 Futbolchilar: " + players +
-        "   ⚽ To‘p: " + balls;
+function toggleGoalLine(){
 
-    requestAnimationFrame(detect);
+ const line=document.getElementById("goalLine");
 
+ line.style.display=
+ line.style.display==="block" ? "none" : "block";
+}
+
+function decision(text){
+
+ document.getElementById("decision").innerText=
+ "🧑‍⚖️ "+text;
+
+ const e=document.createElement("div");
+
+ e.className="event";
+
+ e.innerText=
+ document.getElementById("timer").innerText+
+ " — "+text;
+
+ document.getElementById("events").prepend(e);
+}
+
+function startTimer(){
+
+ if(timer)return;
+
+ timer=setInterval(()=>{
+
+  seconds++;
+
+  let m=Math.floor(seconds/60);
+  let s=seconds%60;
+
+  document.getElementById("timer").innerText=
+  String(m).padStart(2,"0")+":"+
+  String(s).padStart(2,"0");
+
+ },1000);
+}
+
+function stopTimer(){
+
+ clearInterval(timer);
+ timer=null;
+}
+
+function resetTimer(){
+
+ stopTimer();
+ seconds=0;
+
+ document.getElementById("timer").innerText="00:00";
 }
 
 loadAI();
