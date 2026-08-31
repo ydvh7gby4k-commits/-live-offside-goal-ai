@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Live Football AI Referee</title>
+
+<style>
+body{
+margin:0;
+background:#0d1117;
+color:white;
+font-family:-apple-system,BlinkMacSystemFont,sans-serif
+}
+
+main{
+max-width:900px;
+margin:auto;
+padding:14px
+}
+
+#wrap{
+position:relative;
+background:#000;
+border-radius:15px;
+overflow:hidden
+}
+
+video,canvas{
+width:100%;
+display:block
+}
+
+canvas{
+position:absolute;
+left:0;
+top:0
+}
+
+button{
+border:0;
+border-radius:11px;
+padding:13px 8px;
+font-size:15px;
+font-weight:700;
+background:#252b34;
+color:white
+}
+
+.grid{
+display:grid;
+grid-template-columns:1fr 1fr;
+gap:8px;
+margin-top:10px
+}
+
+#start{
+background:#168a48
+}
+
+#stop{
+background:#b93636
+}
+
+#result{
+margin-top:12px;
+padding:14px;
+border-radius:14px;
+background:#202630;
+text-align:center
+}
+
+#decision{
+font-size:25px;
+font-weight:800
+}
+
+.small{
+font-size:12px;
+opacity:.7;
+line-height:1.45
+}
+</style>
+</head>
+
+<body>
+
+<main>
+
+<h1>⚽ Live Football AI Referee</h1>
+
+<p class="small">
+iPhone kamerasi orqali futbolni jonli kuzatish.
+</p>
+
+<div id="wrap">
+
+<video id="v" playsinline autoplay muted></video>
+
+<canvas id="c"></canvas>
+
+</div>
+
+<div class="grid">
+
+<button id="start">
+📷 Kamerani boshlash
+</button>
+
+<button id="stop">
+⏹ To‘xtatish
+</button>
+
+</div>
+
+<div id="result">
+
+<div id="decision">
+READY
+</div>
+
+<div id="status">
+Kamerani boshlang
+</div>
+
+</div>
+
+<h3>⚽ Qarorlar</h3>
+
+<div class="grid">
+
+<button onclick="D('🚩 OFFSIDE','Offside')">
+🚩 OFFSIDE
+</button>
+
+<button onclick="D('🟢 ON-SIDE','Offside yo‘q')">
+🟢 ON-SIDE
+</button>
+
+<button onclick="D('⚽ GOAL','Gol')">
+⚽ GOAL
+</button>
+
+<button onclick="D('❌ NO GOAL','Gol emas')">
+❌ NO GOAL
+</button>
+
+<button onclick="D('↔️ OUT / THROW-IN','Aut')">
+↔️ OUT
+</button>
+
+<button onclick="D('🚩 CORNER','Burchak')">
+🚩 CORNER
+</button>
+
+<button onclick="D('🟩 FREE KICK','Jarima zarbasi')">
+🟩 FREE KICK
+</button>
+
+<button onclick="D('🟥 PENALTY','Penalti')">
+🟥 PENALTY
+</button>
+
+</div>
+
+<p class="small">
+⚠️ Bu prototip. Bitta telefon kamerasi professional VAR/GLT kabi 100% aniq qaror bera olmaydi.
+</p>
+
+</main>
+
+<script>
+
+const v=document.getElementById('v');
+
+const c=document.getElementById('c');
+
+const x=c.getContext('2d');
+
+let s=null;
+
+let r;
+
+async function start(){
+
+try{
+
+s=await navigator.mediaDevices.getUserMedia({
+
+video:{
+facingMode:{ideal:'environment'},
+width:{ideal:1280},
+height:{ideal:720}
+},
+
+audio:false
+
+});
+
+v.srcObject=s;
+
+await v.play();
+
+size();
+
+draw();
+
+status.textContent=
+'🟢 LIVE — kamera ishlayapti';
+
+}
+
+catch(e){
+
+status.textContent=
+'❌ Kamera ochilmadi: '+e.message;
+
+}
+
+}
+
+function size(){
+
+c.width=v.videoWidth||1280;
+
+c.height=v.videoHeight||720;
+
+}
+
+function draw(){
+
+if(v.readyState>=2){
+
+if(
+c.width!=v.videoWidth||
+c.height!=v.videoHeight
+){
+
+size();
+
+}
+
+x.clearRect(
+0,
+0,
+c.width,
+c.height
+);
+
+let y=c.height*.72;
+
+x.strokeStyle='#00e5ff';
+
+x.lineWidth=
+Math.max(3,c.width/320);
+
+x.beginPath();
+
+x.moveTo(
+c.width*.08,
+y
+);
+
+x.lineTo(
+c.width*.92,
+y
+);
+
+x.stroke();
+
+x.fillStyle='#00e5ff';
+
+x.font=
+'bold '+
+Math.max(16,c.width/38)+
+'px sans-serif';
+
+x.fillText(
+'GOAL-LINE GUIDE',
+c.width*.08,
+y-12
+);
+
+}
+
+r=requestAnimationFrame(draw);
+
+}
+
+function stop(){
+
+if(r)
+cancelAnimationFrame(r);
+
+if(s)
+s.getTracks().forEach(
+t=>t.stop()
+);
+
+s=null;
+
+v.srcObject=null;
+
+status.textContent=
+'Kamera o‘chirilgan';
+
+}
+
+function D(a,b){
+
+decision.textContent=a;
+
+status.textContent=b;
+
+}
+
+start.onclick=start;
+
+stop.onclick=stop;
+
+</script>
+
+</body>
+</html>
