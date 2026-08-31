@@ -11,47 +11,108 @@
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;background:#080b10;color:#fff;
- font-family:Arial;text-align:center
+ margin:0;
+ background:#080b10;
+ color:white;
+ font-family:Arial,sans-serif;
+ text-align:center;
 }
 h1{margin:15px 0 5px}
-#status{margin:10px;font-size:16px}
-.camera{
- position:relative;width:96%;max-width:1000px;
- margin:auto;background:#000;border-radius:15px;overflow:hidden
+h2{margin-top:20px}
+.status{
+ margin:10px;
+ padding:10px;
+ border-radius:10px;
+ background:#151b22;
 }
-video{display:block;width:100%}
+.camera{
+ position:relative;
+ width:96%;
+ max-width:1000px;
+ margin:auto;
+ background:#000;
+ border-radius:15px;
+ overflow:hidden;
+}
+video,img{
+ width:100%;
+ display:block;
+}
 canvas{
- position:absolute;left:0;top:0;width:100%;height:100%
+ position:absolute;
+ left:0;
+ top:0;
+ width:100%;
+ height:100%;
+ pointer-events:none;
 }
 #goalLine{
- display:none;position:absolute;left:0;right:0;
- bottom:12%;height:5px;background:red;
- box-shadow:0 0 15px red
+ display:none;
+ position:absolute;
+ left:0;
+ right:0;
+ bottom:12%;
+ height:5px;
+ background:red;
+ box-shadow:0 0 15px red;
 }
 button{
- border:0;border-radius:10px;padding:13px 15px;
- margin:4px;font-weight:bold;font-size:14px
+ border:0;
+ border-radius:10px;
+ padding:13px 15px;
+ margin:4px;
+ font-weight:bold;
+ font-size:14px;
 }
-.on{background:#00a86b;color:white}
-.off{background:#d50000;color:white}
-.goal{background:#087f23;color:white}
-.no{background:#b71c1c;color:white}
-.orange{background:#ff9800}
+.green{background:#00a86b;color:white}
+.red{background:#d50000;color:white}
 .blue{background:#1976d2;color:white}
+.orange{background:#ff9800}
 .purple{background:#7b1fa2;color:white}
 .gray{background:#607d8b;color:white}
+.goal{background:#087f23;color:white}
+.no{background:#b71c1c;color:white}
 .yellow{background:#ffd600}
-.red{background:#d50000;color:white}
 #decision{
- margin:12px auto;padding:15px;
- max-width:600px;border-radius:12px;
- background:#151b22;font-size:22px;font-weight:bold
+ margin:12px auto;
+ padding:15px;
+ max-width:600px;
+ border-radius:12px;
+ background:#151b22;
+ font-size:21px;
+ font-weight:bold;
 }
-#timer{font-size:35px;margin:10px}
+#timer{
+ font-size:35px;
+ font-weight:bold;
+ margin:10px;
+}
 .event{
- max-width:600px;margin:5px auto;padding:10px;
- background:#171d24;border-radius:8px;text-align:left
+ max-width:600px;
+ margin:5px auto;
+ padding:10px;
+ background:#171d24;
+ border-radius:8px;
+ text-align:left;
+}
+input{
+ display:none;
+}
+.upload{
+ display:inline-block;
+ padding:13px 15px;
+ margin:4px;
+ border-radius:10px;
+ background:#1976d2;
+ font-weight:bold;
+ cursor:pointer;
+}
+#analysis{
+ max-width:700px;
+ margin:15px auto;
+ padding:15px;
+ background:#151b22;
+ border-radius:12px;
 }
 </style>
 </head>
@@ -60,7 +121,13 @@ button{
 
 <h1>⚽ REFEREE AI</h1>
 
-<div id="status">🤖 AI yuklanmoqda...</div>
+<div id="status" class="status">
+🤖 AI yuklanmoqda...
+</div>
+
+<!-- LIVE CAMERA -->
+
+<h2>🔴 LIVE CAMERA</h2>
 
 <div class="camera">
  <video id="video" autoplay playsinline></video>
@@ -68,31 +135,111 @@ button{
  <div id="goalLine"></div>
 </div>
 
-<div>
- <button class="on" onclick="startCamera()">📷 KAMERA YOQISH</button>
- <button class="off" onclick="stopCamera()">⛔ KAMERA O‘CHIRISH</button>
- <button class="blue" onclick="toggleGoalLine()">🥅 GOAL LINE</button>
+<button class="green" onclick="startCamera()">
+📷 KAMERA YOQISH
+</button>
+
+<button class="red" onclick="stopCamera()">
+⛔ KAMERA O‘CHIRISH
+</button>
+
+<button class="blue" onclick="toggleGoalLine()">
+🥅 GOAL LINE
+</button>
+
+<!-- SCREENSHOT -->
+
+<h2>📸 SCREENSHOT TAHLIL</h2>
+
+<label class="upload">
+📸 SCREENSHOT TANLASH
+<input type="file"
+       accept="image/*"
+       onchange="analyzeImage(event)">
+</label>
+
+<div class="camera">
+ <img id="imagePreview" style="display:none">
+ <canvas id="imageCanvas"></canvas>
 </div>
 
-<div id="decision">🤖 AI: KUTILMOQDA</div>
+<!-- VIDEO -->
+
+<h2>🎥 VIDEO / EKRAN YOZUVI</h2>
+
+<label class="upload">
+🎥 VIDEO TANLASH
+<input type="file"
+       accept="video/*"
+       onchange="loadVideo(event)">
+</label>
+
+<div class="camera">
+ <video id="uploadedVideo"
+        controls
+        style="display:none">
+ </video>
+</div>
+
+<!-- AI RESULT -->
+
+<div id="analysis">
+🤖 AI NATIJASI: KUTILMOQDA
+</div>
+
+<!-- TIMER -->
 
 <div id="timer">00:00</div>
+
 <button onclick="startTimer()">▶ START</button>
 <button onclick="stopTimer()">⏸ STOP</button>
 <button onclick="resetTimer()">🔄 RESET</button>
 
-<h2>Hakam qarori</h2>
+<!-- REFEREE -->
 
-<button class="goal" onclick="decision('⚽ GOAL')">⚽ GOAL</button>
-<button class="no" onclick="decision('❌ NO GOAL')">❌ NO GOAL</button>
-<button class="orange" onclick="decision('🚩 OFFSIDE')">🚩 OFFSIDE</button>
-<button class="gray" onclick="decision('↔️ OUT')">↔️ OUT</button>
-<button class="purple" onclick="decision('🥅 CORNER')">🥅 CORNER</button>
-<button onclick="decision('🟢 FOUL')">🟢 FOUL</button>
-<button class="yellow" onclick="decision('🟨 YELLOW CARD')">🟨 YELLOW</button>
-<button class="red" onclick="decision('🟥 RED CARD')">🟥 RED</button>
+<h2>🧑‍⚖️ HAKAM QARORI</h2>
 
-<h2>📋 O‘yin voqealari</h2>
+<button class="goal"
+onclick="decision('⚽ GOAL')">
+⚽ GOAL
+</button>
+
+<button class="no"
+onclick="decision('❌ NO GOAL')">
+❌ NO GOAL
+</button>
+
+<button class="orange"
+onclick="decision('🚩 OFFSIDE')">
+🚩 OFFSIDE
+</button>
+
+<button class="gray"
+onclick="decision('↔️ OUT')">
+↔️ OUT
+</button>
+
+<button class="purple"
+onclick="decision('🥅 CORNER')">
+🥅 CORNER
+</button>
+
+<button onclick="decision('🟢 FOUL')">
+🟢 FOUL
+</button>
+
+<button class="yellow"
+onclick="decision('🟨 YELLOW CARD')">
+🟨 YELLOW
+</button>
+
+<button class="red"
+onclick="decision('🟥 RED CARD')">
+🟥 RED
+</button>
+
+<h2>📋 O‘YIN VOQEALARI</h2>
+
 <div id="events"></div>
 
 <script>
@@ -100,25 +247,37 @@ button{
 let stream=null;
 let model=null;
 let detecting=false;
+
 let seconds=0;
 let timer=null;
 
-const video=document.getElementById("video");
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
+const video=
+document.getElementById("video");
+
+const canvas=
+document.getElementById("canvas");
+
+const ctx=
+canvas.getContext("2d");
+
+const status=
+document.getElementById("status");
 
 async function loadAI(){
 
  try{
-  model=await cocoSsd.load();
 
-  document.getElementById("status").innerText=
-  "✅ AI tayyor — kamera yoqing";
+  model=
+  await cocoSsd.load();
+
+  status.innerText=
+  "✅ AI TAYYOR — KAMERA YOQING";
 
  }catch(e){
 
-  document.getElementById("status").innerText=
-  "❌ AI yuklanmadi";
+  status.innerText=
+  "❌ AI YUKLANMADI";
+
  }
 
 }
@@ -129,7 +288,9 @@ async function startCamera(){
 
  try{
 
-  stream=await navigator.mediaDevices.getUserMedia({
+  stream=
+  await navigator.mediaDevices
+  .getUserMedia({
    video:{
     facingMode:{ideal:"environment"},
     width:{ideal:1280},
@@ -142,21 +303,26 @@ async function startCamera(){
 
   video.onloadedmetadata=()=>{
 
-   canvas.width=video.videoWidth;
-   canvas.height=video.videoHeight;
+   canvas.width=
+   video.videoWidth;
+
+   canvas.height=
+   video.videoHeight;
 
    detecting=true;
+
    detect();
 
   };
 
-  document.getElementById("status").innerText=
-  "🟢 KAMERA ISHLAYAPTI";
+  status.innerText=
+  "🟢 LIVE KAMERA ISHLAYAPTI";
 
  }catch(e){
 
-  document.getElementById("status").innerText=
-  "❌ Kameraga ruxsat berilmadi";
+  status.innerText=
+  "❌ KAMERAGA RUXSAT BERILMADI";
+
  }
 
 }
@@ -166,25 +332,38 @@ function stopCamera(){
  detecting=false;
 
  if(stream){
-  stream.getTracks().forEach(t=>t.stop());
+
+  stream.getTracks()
+  .forEach(t=>t.stop());
+
   stream=null;
  }
 
  video.srcObject=null;
 
- ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.clearRect(
+  0,0,
+  canvas.width,
+  canvas.height
+ );
 
- document.getElementById("status").innerText=
- "📷 Kamera o‘chiq";
+ status.innerText=
+ "📷 KAMERA O‘CHIQ";
+
 }
 
 async function detect(){
 
  if(!detecting || !model)return;
 
- const predictions=await model.detect(video);
+ const predictions=
+ await model.detect(video);
 
- ctx.clearRect(0,0,canvas.width,canvas.height);
+ ctx.clearRect(
+  0,0,
+  canvas.width,
+  canvas.height
+ );
 
  let players=0;
  let balls=0;
@@ -193,90 +372,22 @@ async function detect(){
 
   const [x,y,w,h]=p.bbox;
 
-  if(p.class==="person")players++;
-  if(p.class==="sports ball")balls++;
+  if(p.class==="person")
+   players++;
+
+  if(p.class==="sports ball")
+   balls++;
 
   ctx.strokeStyle="#00ff00";
   ctx.lineWidth=3;
-  ctx.strokeRect(x,y,w,h);
+
+  ctx.strokeRect(
+   x,y,w,h
+  );
 
   ctx.fillStyle="#00ff00";
   ctx.font="18px Arial";
 
   ctx.fillText(
-   p.class+" "+Math.round(p.score*100)+"%",
-   x,
-   Math.max(18,y-5)
-  );
-
- });
-
- document.getElementById("status").innerText=
- "👤 Futbolchilar: "+players+
- " | ⚽ To‘p: "+balls;
-
- requestAnimationFrame(detect);
-}
-
-function toggleGoalLine(){
-
- const line=document.getElementById("goalLine");
-
- line.style.display=
- line.style.display==="block" ? "none" : "block";
-}
-
-function decision(text){
-
- document.getElementById("decision").innerText=
- "🧑‍⚖️ "+text;
-
- const e=document.createElement("div");
-
- e.className="event";
-
- e.innerText=
- document.getElementById("timer").innerText+
- " — "+text;
-
- document.getElementById("events").prepend(e);
-}
-
-function startTimer(){
-
- if(timer)return;
-
- timer=setInterval(()=>{
-
-  seconds++;
-
-  let m=Math.floor(seconds/60);
-  let s=seconds%60;
-
-  document.getElementById("timer").innerText=
-  String(m).padStart(2,"0")+":"+
-  String(s).padStart(2,"0");
-
- },1000);
-}
-
-function stopTimer(){
-
- clearInterval(timer);
- timer=null;
-}
-
-function resetTimer(){
-
- stopTimer();
- seconds=0;
-
- document.getElementById("timer").innerText="00:00";
-}
-
-loadAI();
-
-</script>
-
-</body>
-</html>
+   p.class+
+  
