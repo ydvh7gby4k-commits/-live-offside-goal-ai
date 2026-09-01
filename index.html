@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>REFEREE AI</title>
+<title>GOAL LINE AI</title>
 
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
 <script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
@@ -11,383 +11,322 @@
 <style>
 *{box-sizing:border-box}
 body{
- margin:0;
- background:#080b10;
- color:white;
- font-family:Arial,sans-serif;
- text-align:center;
+  margin:0;
+  background:#080b10;
+  color:white;
+  font-family:Arial,sans-serif;
+  text-align:center;
 }
-h1{margin:15px 0 5px}
-h2{margin-top:20px}
-.status{
- margin:10px;
- padding:10px;
- border-radius:10px;
- background:#151b22;
+h1{margin:15px}
+#status,#result{
+  margin:10px auto;
+  padding:12px;
+  max-width:800px;
+  border-radius:10px;
+  background:#151b22;
 }
-.camera{
- position:relative;
- width:96%;
- max-width:1000px;
- margin:auto;
- background:#000;
- border-radius:15px;
- overflow:hidden;
+.stage{
+  position:relative;
+  width:96%;
+  max-width:900px;
+  margin:auto;
+  background:#000;
+  overflow:hidden;
+  border-radius:15px;
 }
 video,img{
- width:100%;
- display:block;
+  width:100%;
+  display:block;
 }
 canvas{
- position:absolute;
- left:0;
- top:0;
- width:100%;
- height:100%;
- pointer-events:none;
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  pointer-events:none;
 }
 #goalLine{
- display:none;
- position:absolute;
- left:0;
- right:0;
- bottom:12%;
- height:5px;
- background:red;
- box-shadow:0 0 15px red;
+  display:none;
+  position:absolute;
+  left:0;
+  right:0;
+  bottom:15%;
+  height:5px;
+  background:red;
+  box-shadow:0 0 15px red;
 }
-button{
- border:0;
- border-radius:10px;
- padding:13px 15px;
- margin:4px;
- font-weight:bold;
- font-size:14px;
+button,label{
+  display:inline-block;
+  border:0;
+  border-radius:10px;
+  padding:13px 15px;
+  margin:5px;
+  font-weight:bold;
+  cursor:pointer;
 }
 .green{background:#00a86b;color:white}
 .red{background:#d50000;color:white}
 .blue{background:#1976d2;color:white}
-.orange{background:#ff9800}
-.purple{background:#7b1fa2;color:white}
-.gray{background:#607d8b;color:white}
 .goal{background:#087f23;color:white}
 .no{background:#b71c1c;color:white}
-.yellow{background:#ffd600}
-#decision{
- margin:12px auto;
- padding:15px;
- max-width:600px;
- border-radius:12px;
- background:#151b22;
- font-size:21px;
- font-weight:bold;
-}
-#timer{
- font-size:35px;
- font-weight:bold;
- margin:10px;
-}
-.event{
- max-width:600px;
- margin:5px auto;
- padding:10px;
- background:#171d24;
- border-radius:8px;
- text-align:left;
-}
-input{
- display:none;
-}
-.upload{
- display:inline-block;
- padding:13px 15px;
- margin:4px;
- border-radius:10px;
- background:#1976d2;
- font-weight:bold;
- cursor:pointer;
-}
-#analysis{
- max-width:700px;
- margin:15px auto;
- padding:15px;
- background:#151b22;
- border-radius:12px;
-}
+input{display:none}
 </style>
 </head>
 
 <body>
 
-<h1>⚽ REFEREE AI</h1>
+<h1>⚽ GOAL LINE AI</h1>
 
-<div id="status" class="status">
-🤖 AI yuklanmoqda...
+<div id="status">🤖 AI yuklanmoqda...</div>
+
+<h2>🔴 LIVE</h2>
+
+<div class="stage">
+  <video id="liveVideo" autoplay playsinline></video>
+  <canvas id="liveCanvas"></canvas>
+  <div id="goalLine"></div>
 </div>
 
-<!-- LIVE CAMERA -->
+<button class="green" onclick="startCamera()">📷 KAMERA YOQISH</button>
+<button class="red" onclick="stopCamera()">⛔ KAMERA O‘CHIRISH</button>
+<button class="blue" onclick="toggleLine()">🥅 GOAL LINE</button>
 
-<h2>🔴 LIVE CAMERA</h2>
+<h2>📸 SCREENSHOT</h2>
 
-<div class="camera">
- <video id="video" autoplay playsinline></video>
- <canvas id="canvas"></canvas>
- <div id="goalLine"></div>
-</div>
-
-<button class="green" onclick="startCamera()">
-📷 KAMERA YOQISH
-</button>
-
-<button class="red" onclick="stopCamera()">
-⛔ KAMERA O‘CHIRISH
-</button>
-
-<button class="blue" onclick="toggleGoalLine()">
-🥅 GOAL LINE
-</button>
-
-<!-- SCREENSHOT -->
-
-<h2>📸 SCREENSHOT TAHLIL</h2>
-
-<label class="upload">
-📸 SCREENSHOT TANLASH
-<input type="file"
-       accept="image/*"
-       onchange="analyzeImage(event)">
+<label class="blue">
+  📸 RASM TANLASH
+  <input type="file" accept="image/*" onchange="analyzeImage(event)">
 </label>
 
-<div class="camera">
- <img id="imagePreview" style="display:none">
- <canvas id="imageCanvas"></canvas>
+<div class="stage">
+  <img id="photo" style="display:none">
+  <canvas id="photoCanvas"></canvas>
 </div>
-
-<!-- VIDEO -->
 
 <h2>🎥 VIDEO / EKRAN YOZUVI</h2>
 
-<label class="upload">
-🎥 VIDEO TANLASH
-<input type="file"
-       accept="video/*"
-       onchange="loadVideo(event)">
+<label class="blue">
+  🎥 VIDEO TANLASH
+  <input type="file" accept="video/*" onchange="loadVideo(event)">
 </label>
 
-<div class="camera">
- <video id="uploadedVideo"
-        controls
-        style="display:none">
- </video>
+<div class="stage">
+  <video id="fileVideo" controls style="display:none"></video>
 </div>
 
-<!-- AI RESULT -->
-
-<div id="analysis">
-🤖 AI NATIJASI: KUTILMOQDA
+<div id="result">
+  ⚪ NATIJA: KUTILMOQDA
 </div>
 
-<!-- TIMER -->
-
-<div id="timer">00:00</div>
-
-<button onclick="startTimer()">▶ START</button>
-<button onclick="stopTimer()">⏸ STOP</button>
-<button onclick="resetTimer()">🔄 RESET</button>
-
-<!-- REFEREE -->
-
-<h2>🧑‍⚖️ HAKAM QARORI</h2>
-
-<button class="goal"
-onclick="decision('⚽ GOAL')">
-⚽ GOAL
-</button>
-
-<button class="no"
-onclick="decision('❌ NO GOAL')">
-❌ NO GOAL
-</button>
-
-<button class="orange"
-onclick="decision('🚩 OFFSIDE')">
-🚩 OFFSIDE
-</button>
-
-<button class="gray"
-onclick="decision('↔️ OUT')">
-↔️ OUT
-</button>
-
-<button class="purple"
-onclick="decision('🥅 CORNER')">
-🥅 CORNER
-</button>
-
-<button onclick="decision('🟢 FOUL')">
-🟢 FOUL
-</button>
-
-<button class="yellow"
-onclick="decision('🟨 YELLOW CARD')">
-🟨 YELLOW
-</button>
-
-<button class="red"
-onclick="decision('🟥 RED CARD')">
-🟥 RED
-</button>
-
-<h2>📋 O‘YIN VOQEALARI</h2>
-
-<div id="events"></div>
+<button class="goal" onclick="setResult('⚽ GOAL')">⚽ GOAL</button>
+<button class="no" onclick="setResult('❌ NO GOAL')">❌ NO GOAL</button>
 
 <script>
 
-let stream=null;
 let model=null;
-let detecting=false;
+let stream=null;
+let running=false;
 
-let seconds=0;
-let timer=null;
+const liveVideo=document.getElementById("liveVideo");
+const liveCanvas=document.getElementById("liveCanvas");
+const liveCtx=liveCanvas.getContext("2d");
 
-const video=
-document.getElementById("video");
-
-const canvas=
-document.getElementById("canvas");
-
-const ctx=
-canvas.getContext("2d");
-
-const status=
-document.getElementById("status");
+const statusBox=document.getElementById("status");
+const resultBox=document.getElementById("result");
 
 async function loadAI(){
 
- try{
+  try{
+    model=await cocoSsd.load();
 
-  model=
-  await cocoSsd.load();
+    statusBox.innerText=
+      "✅ AI tayyor — kamera yoki rasm tanlang";
 
-  status.innerText=
-  "✅ AI TAYYOR — KAMERA YOQING";
+  }catch(error){
 
- }catch(e){
-
-  status.innerText=
-  "❌ AI YUKLANMADI";
-
- }
-
+    statusBox.innerText=
+      "❌ AI yuklanmadi. Internetni tekshiring.";
+  }
 }
 
 async function startCamera(){
 
- if(stream)return;
+  if(!model){
+    statusBox.innerText=
+      "⏳ AI hali yuklanmoqda...";
+    return;
+  }
 
- try{
+  try{
 
-  stream=
-  await navigator.mediaDevices
-  .getUserMedia({
-   video:{
-    facingMode:{ideal:"environment"},
-    width:{ideal:1280},
-    height:{ideal:720}
-   },
-   audio:false
-  });
+    stream=await navigator.mediaDevices.getUserMedia({
+      video:{
+        facingMode:{ideal:"environment"},
+        width:{ideal:1280},
+        height:{ideal:720}
+      },
+      audio:false
+    });
 
-  video.srcObject=stream;
+    liveVideo.srcObject=stream;
+    running=true;
 
-  video.onloadedmetadata=()=>{
+    liveVideo.onloadedmetadata=()=>{
 
-   canvas.width=
-   video.videoWidth;
+      liveCanvas.width=liveVideo.videoWidth;
+      liveCanvas.height=liveVideo.videoHeight;
 
-   canvas.height=
-   video.videoHeight;
+      detectLive();
+    };
 
-   detecting=true;
+    statusBox.innerText=
+      "🟢 LIVE AI ISHLAYAPTI";
 
-   detect();
+  }catch(error){
 
-  };
-
-  status.innerText=
-  "🟢 LIVE KAMERA ISHLAYAPTI";
-
- }catch(e){
-
-  status.innerText=
-  "❌ KAMERAGA RUXSAT BERILMADI";
-
- }
-
+    statusBox.innerText=
+      "❌ Kameraga ruxsat berilmadi";
+  }
 }
 
 function stopCamera(){
 
- detecting=false;
+  running=false;
 
- if(stream){
+  if(stream){
+    stream.getTracks().forEach(t=>t.stop());
+    stream=null;
+  }
 
-  stream.getTracks()
-  .forEach(t=>t.stop());
+  liveVideo.srcObject=null;
 
-  stream=null;
- }
-
- video.srcObject=null;
-
- ctx.clearRect(
-  0,0,
-  canvas.width,
-  canvas.height
- );
-
- status.innerText=
- "📷 KAMERA O‘CHIQ";
-
-}
-
-async function detect(){
-
- if(!detecting || !model)return;
-
- const predictions=
- await model.detect(video);
-
- ctx.clearRect(
-  0,0,
-  canvas.width,
-  canvas.height
- );
-
- let players=0;
- let balls=0;
-
- predictions.forEach(p=>{
-
-  const [x,y,w,h]=p.bbox;
-
-  if(p.class==="person")
-   players++;
-
-  if(p.class==="sports ball")
-   balls++;
-
-  ctx.strokeStyle="#00ff00";
-  ctx.lineWidth=3;
-
-  ctx.strokeRect(
-   x,y,w,h
+  liveCtx.clearRect(
+    0,0,
+    liveCanvas.width,
+    liveCanvas.height
   );
 
-  ctx.fillStyle="#00ff00";
-  ctx.font="18px Arial";
+  statusBox.innerText="📷 Kamera o‘chiq";
+}
 
-  ctx.fillText(
-   p.class+
-  
+async function detectLive(){
+
+  if(!running || !model)return;
+
+  const predictions=await model.detect(liveVideo);
+
+  liveCtx.clearRect(
+    0,0,
+    liveCanvas.width,
+    liveCanvas.height
+  );
+
+  let ballFound=false;
+
+  predictions.forEach(p=>{
+
+    const [x,y,w,h]=p.bbox;
+
+    if(p.class==="sports ball"){
+      ballFound=true;
+
+      liveCtx.strokeStyle="lime";
+      liveCtx.lineWidth=4;
+      liveCtx.strokeRect(x,y,w,h);
+
+      liveCtx.fillStyle="lime";
+      liveCtx.font="18px Arial";
+      liveCtx.fillText(
+        "⚽ BALL "+Math.round(p.score*100)+"%",
+        x,
+        Math.max(20,y-5)
+      );
+    }
+  });
+
+  statusBox.innerText=
+    ballFound
+    ? "⚽ To‘p aniqlandi"
+    : "🔍 To‘p qidirilmoqda...";
+
+  requestAnimationFrame(detectLive);
+}
+
+function toggleLine(){
+
+  const line=document.getElementById("goalLine");
+
+  line.style.display=
+    line.style.display==="block"
+    ? "none"
+    : "block";
+}
+
+async function analyzeImage(event){
+
+  const file=event.target.files[0];
+
+  if(!file)return;
+
+  const img=document.getElementById("photo");
+
+  img.src=URL.createObjectURL(file);
+  img.style.display="block";
+
+  img.onload=async()=>{
+
+    if(!model){
+      resultBox.innerText=
+        "⏳ AI yuklandi";
+      return;
+    }
+
+    const predictions=
+      await model.detect(img);
+
+    const ball=
+      predictions.find(
+        p=>p.class==="sports ball"
+      );
+
+    if(ball){
+
+      resultBox.innerText=
+        "⚽ TO‘P ANIQLANDI — GOAL LINE TEKSHIRISH KERAK";
+
+    }else{
+
+      resultBox.innerText=
+        "🔍 TO‘P ANIQLANMADI — REVIEW";
+    }
+  };
+}
+
+function loadVideo(event){
+
+  const file=event.target.files[0];
+
+  if(!file)return;
+
+  const video=document.getElementById("fileVideo");
+
+  video.src=URL.createObjectURL(file);
+  video.style.display="block";
+
+  resultBox.innerText=
+    "🎥 VIDEO YUKLANDI — KADRMA-KADR TAHLIL UCHUN TAYYOR";
+}
+
+function setResult(text){
+
+  resultBox.innerText=
+    "🧑‍⚖️ "+text;
+}
+
+loadAI();
+
+</script>
+
+</body>
+</html>
+`
