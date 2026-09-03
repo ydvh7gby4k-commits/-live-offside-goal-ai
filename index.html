@@ -2,331 +2,355 @@
 <html lang="uz">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>GOAL LINE AI</title>
-
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow/tfjs"></script>
-<script src="https://cdn.jsdelivr.net/npm/@tensorflow-models/coco-ssd"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Offside AI Referee</title>
 
 <style>
 *{box-sizing:border-box}
 body{
   margin:0;
-  background:#080b10;
-  color:white;
   font-family:Arial,sans-serif;
+  background:#07111f;
+  color:white;
+}
+header{
+  padding:20px;
   text-align:center;
+  background:#0d1b2e;
 }
-h1{margin:15px}
-#status,#result{
-  margin:10px auto;
-  padding:12px;
-  max-width:800px;
-  border-radius:10px;
-  background:#151b22;
-}
-.stage{
-  position:relative;
-  width:96%;
-  max-width:900px;
+h1{margin:0;font-size:25px}
+.subtitle{color:#9fb3c8;margin-top:7px}
+
+.container{
+  max-width:1000px;
   margin:auto;
-  background:#000;
-  overflow:hidden;
-  border-radius:15px;
+  padding:15px;
 }
-video,img{
-  width:100%;
-  display:block;
+
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  gap:10px;
+  margin-bottom:15px;
 }
-canvas{
-  position:absolute;
-  inset:0;
-  width:100%;
-  height:100%;
-  pointer-events:none;
-}
-#goalLine{
-  display:none;
-  position:absolute;
-  left:0;
-  right:0;
-  bottom:15%;
-  height:5px;
-  background:red;
-  box-shadow:0 0 15px red;
-}
+
 button,label{
-  display:inline-block;
   border:0;
   border-radius:10px;
-  padding:13px 15px;
-  margin:5px;
+  padding:12px 15px;
+  background:#17304d;
+  color:white;
   font-weight:bold;
   cursor:pointer;
 }
-.green{background:#00a86b;color:white}
-.red{background:#d50000;color:white}
-.blue{background:#1976d2;color:white}
-.goal{background:#087f23;color:white}
-.no{background:#b71c1c;color:white}
+
+button:hover,label:hover{background:#24486d}
+
 input{display:none}
+
+.canvasBox{
+  position:relative;
+  width:100%;
+  background:#000;
+  border-radius:14px;
+  overflow:hidden;
+}
+
+canvas{
+  display:block;
+  width:100%;
+  height:auto;
+  cursor:crosshair;
+}
+
+.info{
+  margin-top:15px;
+  padding:15px;
+  background:#0d1b2e;
+  border-radius:12px;
+  line-height:1.5;
+}
+
+.result{
+  margin-top:15px;
+  padding:18px;
+  text-align:center;
+  border-radius:12px;
+  font-size:24px;
+  font-weight:bold;
+  background:#13263d;
+}
+
+.small{
+  font-size:14px;
+  color:#9fb3c8;
+}
+
+.red{color:#ff5c5c}
+.green{color:#45e38a}
+.yellow{color:#ffd166}
 </style>
 </head>
 
 <body>
 
-<h1>⚽ GOAL LINE AI</h1>
+<header>
+  <h1>⚽ OFFSIDE AI REFEREE</h1>
+  <div class="subtitle">Qo‘lda offside chizig‘ini chizish va tekshirish</div>
+</header>
 
-<div id="status">🤖 AI yuklanmoqda...</div>
+<div class="container">
 
-<h2>🔴 LIVE</h2>
+<div class="controls">
 
-<div class="stage">
-  <video id="liveVideo" autoplay playsinline></video>
-  <canvas id="liveCanvas"></canvas>
-  <div id="goalLine"></div>
-</div>
-
-<button class="green" onclick="startCamera()">📷 KAMERA YOQISH</button>
-<button class="red" onclick="stopCamera()">⛔ KAMERA O‘CHIRISH</button>
-<button class="blue" onclick="toggleLine()">🥅 GOAL LINE</button>
-
-<h2>📸 SCREENSHOT</h2>
-
-<label class="blue">
-  📸 RASM TANLASH
-  <input type="file" accept="image/*" onchange="analyzeImage(event)">
+<label>
+📷 Rasm yuklash
+<input type="file" id="imageInput" accept="image/*">
 </label>
 
-<div class="stage">
-  <img id="photo" style="display:none">
-  <canvas id="photoCanvas"></canvas>
+<button onclick="clearDrawing()">🗑 Chiziqni o‘chirish</button>
+
+<button onclick="setDirection('right')">➡️ Hujum o‘ngga</button>
+
+<button onclick="setDirection('left')">⬅️ Hujum chapga</button>
+
+<button onclick="checkOffside()">⚖️ OFFSIDE TEKSHIRISH</button>
+
 </div>
 
-<h2>🎥 VIDEO / EKRAN YOZUVI</h2>
-
-<label class="blue">
-  🎥 VIDEO TANLASH
-  <input type="file" accept="video/*" onchange="loadVideo(event)">
-</label>
-
-<div class="stage">
-  <video id="fileVideo" controls style="display:none"></video>
+<div class="canvasBox">
+<canvas id="canvas"></canvas>
 </div>
 
-<div id="result">
-  ⚪ NATIJA: KUTILMOQDA
+<div class="info">
+  <b>Qanday ishlaydi?</b><br><br>
+
+  1️⃣ Rasm yoki o‘yin screenshotini yuklang.<br>
+  2️⃣ Sichqoncha yoki telefon barmog‘i bilan himoyachining kerakli nuqtasidan chiziq chizing.<br>
+  3️⃣ Hujumchining eng oldingi hisobga olinadigan tana nuqtasini belgilang.<br>
+  4️⃣ <b>OFFSIDE TEKSHIRISH</b> tugmasini bosing.
+  
+  <p class="small">
+  Eslatma: bu professional VAR emas. Chiziqni foydalanuvchi qo‘lda belgilaydi.
+  Qo‘l va qo‘l panjalari offside hisobida olinmaydi.
+  </p>
 </div>
 
-<button class="goal" onclick="setResult('⚽ GOAL')">⚽ GOAL</button>
-<button class="no" onclick="setResult('❌ NO GOAL')">❌ NO GOAL</button>
+<div id="result" class="result">
+  Rasm yuklang va offside chizig‘ini belgilang.
+</div>
+
+</div>
 
 <script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+const input = document.getElementById("imageInput");
+const result = document.getElementById("result");
 
-let model=null;
-let stream=null;
-let running=false;
+let img = new Image();
+let drawing = false;
+let startX = 0;
+let startY = 0;
+let line = null;
+let attacker = null;
+let direction = "right";
 
-const liveVideo=document.getElementById("liveVideo");
-const liveCanvas=document.getElementById("liveCanvas");
-const liveCtx=liveCanvas.getContext("2d");
+input.addEventListener("change", function(e){
 
-const statusBox=document.getElementById("status");
-const resultBox=document.getElementById("result");
+  const file = e.target.files[0];
+  if(!file) return;
 
-async function loadAI(){
+  const reader = new FileReader();
 
-  try{
-    model=await cocoSsd.load();
+  reader.onload = function(event){
+    img.onload = function(){
 
-    statusBox.innerText=
-      "✅ AI tayyor — kamera yoki rasm tanlang";
+      canvas.width = img.naturalWidth;
+      canvas.height = img.naturalHeight;
 
-  }catch(error){
+      drawImage();
 
-    statusBox.innerText=
-      "❌ AI yuklanmadi. Internetni tekshiring.";
+      result.innerHTML =
+        "🔴 Himoyachi chizig‘ini qo‘lda chizing.";
+      result.className = "result yellow";
+    };
+
+    img.src = event.target.result;
+  };
+
+  reader.readAsDataURL(file);
+});
+
+function drawImage(){
+
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.drawImage(img,0,0,canvas.width,canvas.height);
+
+  if(line){
+    ctx.beginPath();
+    ctx.moveTo(line.x1,line.y1);
+    ctx.lineTo(line.x2,line.y2);
+    ctx.strokeStyle="red";
+    ctx.lineWidth=Math.max(4,canvas.width/250);
+    ctx.stroke();
+  }
+
+  if(attacker){
+    ctx.beginPath();
+    ctx.arc(attacker.x,attacker.y,12,0,Math.PI*2);
+    ctx.fillStyle="yellow";
+    ctx.fill();
+
+    ctx.strokeStyle="black";
+    ctx.lineWidth=3;
+    ctx.stroke();
+
+    ctx.font="bold 20px Arial";
+    ctx.fillStyle="yellow";
+    ctx.fillText("HUJUMCHI",attacker.x+15,attacker.y-10);
   }
 }
 
-async function startCamera(){
+canvas.addEventListener("pointerdown", function(e){
 
-  if(!model){
-    statusBox.innerText=
-      "⏳ AI hali yuklanmoqda...";
+  const rect = canvas.getBoundingClientRect();
+
+  const x=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+  if(!line){
+    drawing=true;
+    startX=x;
+    startY=y;
+  }else{
+    attacker={x:x,y:y};
+
+    result.innerHTML =
+      "🟡 Hujumchi nuqtasi belgilandi. Endi tekshiring.";
+    result.className="result yellow";
+
+    drawImage();
+  }
+});
+
+canvas.addEventListener("pointermove",function(e){
+
+  if(!drawing) return;
+
+  const rect=canvas.getBoundingClientRect();
+
+  const x=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+  drawImage();
+
+  ctx.beginPath();
+  ctx.moveTo(startX,startY);
+  ctx.lineTo(x,y);
+  ctx.strokeStyle="red";
+  ctx.lineWidth=Math.max(4,canvas.width/250);
+  ctx.stroke();
+});
+
+canvas.addEventListener("pointerup",function(e){
+
+  if(!drawing)return;
+
+  drawing=false;
+
+  const rect=canvas.getBoundingClientRect();
+
+  const x=(e.clientX-rect.left)*(canvas.width/rect.width);
+  const y=(e.clientY-rect.top)*(canvas.height/rect.height);
+
+  line={
+    x1:startX,
+    y1:startY,
+    x2:x,
+    y2:y
+  };
+
+  result.innerHTML =
+    "🔴 Offside chizig‘i tayyor. Endi hujumchi nuqtasini bosing.";
+
+  result.className="result red";
+
+  drawImage();
+});
+
+function setDirection(dir){
+  direction=dir;
+
+  result.innerHTML =
+    dir==="right"
+    ? "➡️ Hujum yo‘nalishi: O‘NG"
+    : "⬅️ Hujum yo‘nalishi: CHAP";
+
+  result.className="result yellow";
+}
+
+function checkOffside(){
+
+  if(!line){
+    result.innerHTML="⚠️ Avval offside chizig‘ini chizing.";
+    result.className="result yellow";
     return;
   }
 
-  try{
+  if(!attacker){
+    result.innerHTML="⚠️ Avval hujumchi nuqtasini belgilang.";
+    result.className="result yellow";
+    return;
+  }
 
-    stream=await navigator.mediaDevices.getUserMedia({
-      video:{
-        facingMode:{ideal:"environment"},
-        width:{ideal:1280},
-        height:{ideal:720}
-      },
-      audio:false
-    });
+  // Chiziq tenglamasi
+  const dx=line.x2-line.x1;
+  const dy=line.y2-line.y1;
 
-    liveVideo.srcObject=stream;
-    running=true;
+  const side =
+    dx*(attacker.y-line.y1) -
+    dy*(attacker.x-line.x1);
 
-    liveVideo.onloadedmetadata=()=>{
+  let offside;
 
-      liveCanvas.width=liveVideo.videoWidth;
-      liveCanvas.height=liveVideo.videoHeight;
+  if(direction==="right"){
+    offside=side<0;
+  }else{
+    offside=side>0;
+  }
 
-      detectLive();
-    };
+  if(offside){
 
-    statusBox.innerText=
-      "🟢 LIVE AI ISHLAYAPTI";
+    result.innerHTML =
+      "🚩 OFFSIDE<br><span class='small'>Hujumchi chiziqning old tomonida.</span>";
 
-  }catch(error){
+    result.className="result red";
 
-    statusBox.innerText=
-      "❌ Kameraga ruxsat berilmadi";
+  }else{
+
+    result.innerHTML =
+      "✅ NO OFFSIDE<br><span class='small'>Hujumchi chiziq bilan bir tomonda.</span>";
+
+    result.className="result green";
   }
 }
 
-function stopCamera(){
+function clearDrawing(){
 
-  running=false;
+  line=null;
+  attacker=null;
 
-  if(stream){
-    stream.getTracks().forEach(t=>t.stop());
-    stream=null;
+  if(img.src){
+    drawImage();
   }
 
-  liveVideo.srcObject=null;
+  result.innerHTML =
+    "Rasm yuklang va offside chizig‘ini belgilang.";
 
-  liveCtx.clearRect(
-    0,0,
-    liveCanvas.width,
-    liveCanvas.height
-  );
-
-  statusBox.innerText="📷 Kamera o‘chiq";
+  result.className="result";
 }
-
-async function detectLive(){
-
-  if(!running || !model)return;
-
-  const predictions=await model.detect(liveVideo);
-
-  liveCtx.clearRect(
-    0,0,
-    liveCanvas.width,
-    liveCanvas.height
-  );
-
-  let ballFound=false;
-
-  predictions.forEach(p=>{
-
-    const [x,y,w,h]=p.bbox;
-
-    if(p.class==="sports ball"){
-      ballFound=true;
-
-      liveCtx.strokeStyle="lime";
-      liveCtx.lineWidth=4;
-      liveCtx.strokeRect(x,y,w,h);
-
-      liveCtx.fillStyle="lime";
-      liveCtx.font="18px Arial";
-      liveCtx.fillText(
-        "⚽ BALL "+Math.round(p.score*100)+"%",
-        x,
-        Math.max(20,y-5)
-      );
-    }
-  });
-
-  statusBox.innerText=
-    ballFound
-    ? "⚽ To‘p aniqlandi"
-    : "🔍 To‘p qidirilmoqda...";
-
-  requestAnimationFrame(detectLive);
-}
-
-function toggleLine(){
-
-  const line=document.getElementById("goalLine");
-
-  line.style.display=
-    line.style.display==="block"
-    ? "none"
-    : "block";
-}
-
-async function analyzeImage(event){
-
-  const file=event.target.files[0];
-
-  if(!file)return;
-
-  const img=document.getElementById("photo");
-
-  img.src=URL.createObjectURL(file);
-  img.style.display="block";
-
-  img.onload=async()=>{
-
-    if(!model){
-      resultBox.innerText=
-        "⏳ AI yuklandi";
-      return;
-    }
-
-    const predictions=
-      await model.detect(img);
-
-    const ball=
-      predictions.find(
-        p=>p.class==="sports ball"
-      );
-
-    if(ball){
-
-      resultBox.innerText=
-        "⚽ TO‘P ANIQLANDI — GOAL LINE TEKSHIRISH KERAK";
-
-    }else{
-
-      resultBox.innerText=
-        "🔍 TO‘P ANIQLANMADI — REVIEW";
-    }
-  };
-}
-
-function loadVideo(event){
-
-  const file=event.target.files[0];
-
-  if(!file)return;
-
-  const video=document.getElementById("fileVideo");
-
-  video.src=URL.createObjectURL(file);
-  video.style.display="block";
-
-  resultBox.innerText=
-    "🎥 VIDEO YUKLANDI — KADRMA-KADR TAHLIL UCHUN TAYYOR";
-}
-
-function setResult(text){
-y
-  resultBox.innerText=
-    "🧑‍⚖️ "+text;
-}
-
-loadAI();
-
 </script>
 
 </body>
 </html>
-`
