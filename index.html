@@ -1,689 +1,161 @@
 <!DOCTYPE html>
 <html lang="uz">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>OFFSIDE AI REFEREE</title>
-
-<style>
-*{box-sizing:border-box}
-
-body{
-    margin:0;
-    background:#07111f;
-    color:white;
-    font-family:Arial,sans-serif;
-}
-
-header{
-    background:#0d1b2e;
-    text-align:center;
-    padding:18px;
-}
-
-h1{
-    margin:0;
-    font-size:25px;
-}
-
-.subtitle{
-    margin-top:7px;
-    color:#9db0c5;
-}
-
-.container{
-    max-width:1100px;
-    margin:auto;
-    padding:15px;
-}
-
-.controls{
-    display:flex;
-    flex-wrap:wrap;
-    gap:8px;
-    margin-bottom:12px;
-}
-
-button,label{
-    background:#173451;
-    color:white;
-    border:0;
-    border-radius:9px;
-    padding:12px 15px;
-    font-weight:bold;
-    cursor:pointer;
-}
-
-button:hover,label:hover{
-    background:#26557e;
-}
-
-input{
-    display:none;
-}
-
-.canvas-box{
-    width:100%;
-    background:#000;
-    border-radius:12px;
-    overflow:hidden;
-}
-
-canvas{
-    width:100%;
-    display:block;
-    touch-action:none;
-    cursor:crosshair;
-}
-
-.info{
-    margin-top:12px;
-    background:#0d1b2e;
-    border-radius:12px;
-    padding:15px;
-    line-height:1.6;
-}
-
-.result{
-    margin-top:12px;
-    background:#14283e;
-    border-radius:12px;
-    padding:18px;
-    text-align:center;
-    font-size:23px;
-    font-weight:bold;
-}
-
-.green{color:#45e38a}
-.red{color:#ff5555}
-.yellow{color:#ffd166}
-
-.step{
-    display:inline-block;
-    padding:5px 9px;
-    margin:2px;
-    border-radius:6px;
-    background:#173451;
-}
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Offside Detector (VAR)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #121212;
+      color: #fff;
+      text-align: center;
+      margin: 0;
+      padding: 15px;
+    }
+    h2 { margin-bottom: 10px; }
+    .controls {
+      background: #1e1e1e;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    input[type="file"], input[type="range"] {
+      margin: 10px 0;
+      width: 90%;
+    }
+    .canvas-container {
+      position: relative;
+      display: inline-block;
+      max-width: 100%;
+      overflow: hidden;
+      border: 2px solid #333;
+      border-radius: 8px;
+    }
+    canvas {
+      display: block;
+      max-width: 100%;
+      height: auto;
+      touch-action: none;
+    }
+    button {
+      background: #28a745;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:active { background: #218838; }
+  </style>
 </head>
-
 <body>
 
-<header>
-<h1>⚽ OFFSIDE AI REFEREE</h1>
-<div class="subtitle">
-Maydon perspektivasi + himoyachi + hujumchi
-</div>
-</header>
+  <h2>⚽ Offside Line (VAR) Generator</h2>
 
-<div class="container">
+  <div class="controls">
+    <label>1. Futbol rasmini yuklang:</label><br>
+    <input type="file" id="upload" accept="image/*"><br><br>
+    
+    <label>2. Chiziq burchagi (Angle):</label><br>
+    <input type="range" id="angle" min="-45" max="45" value="0"><br>
 
-<div class="controls">
+    <p style="font-size: 12px; color: #aaa;">Rasm ustiga bosing — chiziq o'sha joyga tushadi.</p>
+  </div>
 
-<label>
-📷 Rasm yuklash
-<input type="file" id="imageInput" accept="image/*">
-</label>
+  <div class="canvas-container">
+    <canvas id="canvas"></canvas>
+  </div>
 
-<button onclick="undo()">↩️ Orqaga</button>
+  <script>
+    const upload = document.getElementById('upload');
+    const angleSlider = document.getElementById('angle');
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
 
-<button onclick="resetAll()">🗑 Tozalash</button>
+    let img = new Image();
+    let lineX = 0;
+    let lineY = 0;
+    let imageLoaded = false;
 
-<button onclick="checkOffside()">⚖️ TEKSHIRISH</button>
+    // Rasm yuklanganda
+    upload.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
 
-</div>
-
-<div class="canvas-box">
-<canvas id="canvas"></canvas>
-</div>
-
-<div class="info">
-
-<b>Nuqtalarni shu tartibda belgilang:</b>
-
-<br><br>
-
-<span class="step">1️⃣ Maydon nuqtasi</span>
-<span class="step">2️⃣ Maydon nuqtasi</span>
-<span class="step">3️⃣ Maydon nuqtasi</span>
-<span class="step">4️⃣ Maydon nuqtasi</span>
-
-<br>
-
-<span class="step">5️⃣ Himoyachining eng oldingi nuqtasi</span>
-
-<br>
-
-<span class="step">6️⃣ Hujumchining eng oldingi nuqtasi</span>
-
-<br><br>
-
-📐 1–4 nuqta maydon perspektivasini aniqlashga yordam beradi.
-
-<br>
-
-🔴 5-nuqta asosida offside chizig‘i hisoblanadi.
-
-<br>
-
-🟡 6-nuqta hujumchining pozitsiyasi.
-
-<br><br>
-
-<b>Eslatma:</b> qo‘l va qo‘l panjalari offside hisobida olinmaydi.
-</div>
-
-<div id="result" class="result">
-📷 Avval o‘yin rasmini yuklang.
-</div>
-
-</div>
-
-<script>
-
-const canvas=document.getElementById("canvas");
-const ctx=canvas.getContext("2d");
-const input=document.getElementById("imageInput");
-const result=document.getElementById("result");
-
-let img=new Image();
-let points=[];
-let currentStep=0;
-
-/*
-1-4 = maydon perspektivasi
-5 = himoyachi
-6 = hujumchi
-*/
-
-input.addEventListener("change",function(e){
-
-    const file=e.target.files[0];
-
-    if(!file)return;
-
-    const reader=new FileReader();
-
-    reader.onload=function(ev){
-
-        img.onload=function(){
-
-            canvas.width=img.naturalWidth;
-            canvas.height=img.naturalHeight;
-
-            points=[];
-            currentStep=0;
-
-            draw();
-
-            result.innerHTML=
-            "1️⃣ Maydonning birinchi nuqtasini bosing.";
-
-            result.className="result yellow";
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        img.onload = () => {
+          canvas.width = img.width;
+          canvas.height = img.height;
+          lineX = canvas.width / 2;
+          lineY = canvas.height / 2;
+          imageLoaded = true;
+          draw();
         };
-
-        img.src=ev.target.result;
-    };
-
-    reader.readAsDataURL(file);
-});
-
-
-canvas.addEventListener("pointerdown",function(e){
-
-    if(!img.src)return;
-
-    if(points.length>=6)return;
-
-    const rect=canvas.getBoundingClientRect();
-
-    const x=(e.clientX-rect.left)*
-            canvas.width/rect.width;
-
-    const y=(e.clientY-rect.top)*
-            canvas.height/rect.height;
-
-    points.push({x,y});
-
-    draw();
-
-    updateInstruction();
-});
-
-
-function updateInstruction(){
-
-    const n=points.length;
-
-    if(n===1){
-
-        result.innerHTML=
-        "2️⃣ Maydonning ikkinchi nuqtasini bosing.";
-
-    }
-
-    else if(n===2){
-
-        result.innerHTML=
-        "3️⃣ Maydonning uchinchi nuqtasini bosing.";
-
-    }
-
-    else if(n===3){
-
-        result.innerHTML=
-        "4️⃣ Maydonning to‘rtinchi nuqtasini bosing.";
-
-    }
-
-    else if(n===4){
-
-        result.innerHTML=
-        "🔴 5️⃣ Himoyachining ENG OLDINGI nuqtasini bosing.";
-
-    }
-
-    else if(n===5){
-
-        result.innerHTML=
-        "🟡 6️⃣ Hujumchining ENG OLDINGI nuqtasini bosing.";
-
-    }
-
-    else if(n===6){
-
-        result.innerHTML=
-        "✅ 6 ta nuqta tayyor. Endi TEKSHIRISH tugmasini bosing.";
-
-        result.className="result green";
-    }
-}
-
-
-function draw(){
-
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-
-    if(img.src){
-        ctx.drawImage(
-            img,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-    }
-
-    /*
-    1-4 maydon nuqtalarini bog‘lash
-    */
-
-    if(points.length>=2){
-
-        ctx.beginPath();
-
-        ctx.moveTo(points[0].x,points[0].y);
-
-        for(let i=1;i<Math.min(points.length,4);i++){
-
-            ctx.lineTo(
-                points[i].x,
-                points[i].y
-            );
-        }
-
-        ctx.strokeStyle="#00aaff";
-        ctx.lineWidth=Math.max(3,canvas.width/350);
-        ctx.stroke();
-    }
-
-    /*
-    4 ta nuqtani yopish
-    */
-
-    if(points.length>=4){
-
-        ctx.beginPath();
-
-        ctx.moveTo(points[3].x,points[3].y);
-        ctx.lineTo(points[0].x,points[0].y);
-
-        ctx.strokeStyle="#00aaff";
-        ctx.lineWidth=Math.max(3,canvas.width/350);
-        ctx.stroke();
-    }
-
-
-    /*
-    Nuqtalarni chizish
-    */
-
-    points.forEach((p,i)=>{
-
-        ctx.beginPath();
-
-        ctx.arc(
-            p.x,
-            p.y,
-            Math.max(8,canvas.width/100),
-            0,
-            Math.PI*2
-        );
-
-        if(i<4){
-            ctx.fillStyle="#00aaff";
-        }
-        else if(i===4){
-            ctx.fillStyle="#ff3333";
-        }
-        else{
-            ctx.fillStyle="#ffd400";
-        }
-
-        ctx.fill();
-
-        ctx.strokeStyle="white";
-        ctx.lineWidth=3;
-        ctx.stroke();
-
-        ctx.font=
-        "bold "+Math.max(18,canvas.width/45)+"px Arial";
-
-        ctx.fillStyle="white";
-
-        ctx.fillText(
-            i+1,
-            p.x+12,
-            p.y-12
-        );
+        img.src = event.target.result;
+      };
+      reader.readAsDataURL(file);
     });
 
+    // Ekran bosilganda (sichqoncha yoki barmat bilan)
+    function setLinePosition(e) {
+      if (!imageLoaded) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
 
-    /*
-    Himoyachi nuqtasi mavjud bo‘lsa
-    offside chizig‘i
-    */
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
 
-    if(points.length>=5){
-
-        drawOffsideLine();
+      lineX = (clientX - rect.left) * scaleX;
+      lineY = (clientY - rect.top) * scaleY;
+      draw();
     }
 
-}
+    canvas.addEventListener('click', setLinePosition);
+    canvas.addEventListener('touchstart', (e) => {
+      setLinePosition(e);
+      e.preventDefault();
+    });
 
+    // Slayder o'zgarganda
+    angleSlider.addEventListener('input', () => {
+      if (imageLoaded) draw();
+    });
 
-function drawOffsideLine(){
+    // Chizish funksiyasi
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
 
-    const defender=points[4];
+      const angle = parseFloat(angleSlider.value) * (Math.PI / 180);
+      const length = Math.max(canvas.width, canvas.height) * 2;
 
-    /*
-    Maydonning 1-2 va 3-4 yo‘nalishlari
-    bo‘yicha taxminiy perspektiva.
+      // Offsayd chizigi (Qizil VAR chizig'i)
+      ctx.save();
+      ctx.translate(lineX, lineY);
+      ctx.rotate(angle);
 
-    Himoyachi nuqtasidan yuqoriga-pastga
-    o'tuvchi chiziq chiziladi.
-    */
+      ctx.beginPath();
+      ctx.moveTo(0, -length);
+      ctx.lineTo(0, length);
+      ctx.strokeStyle = 'rgba(255, 0, 0, 0.8)';
+      ctx.lineWidth = Math.max(3, canvas.width / 300);
+      ctx.setLineDash([10, 5]); // VAR punktir chizigi
+      ctx.stroke();
 
-    const p1=points[0];
-    const p2=points[1];
-    const p3=points[2];
-    const p4=points[3];
+      ctx.restore();
 
-    /*
-    Maydonning uzunlik yo‘nalishi
-    */
-
-    const vx=
-        ((p2.x-p1.x)+(p3.x-p4.x))/2;
-
-    const vy=
-        ((p2.y-p1.y)+(p3.y-p4.y))/2;
-
-    /*
-    Chiziq uzunligi
-    */
-
-    const len=Math.sqrt(vx*vx+vy*vy)||1;
-
-    /*
-    Perpendikulyar yo‘nalish
-    */
-
-    const nx=-vy/len;
-    const ny=vx/len;
-
-    const L=Math.max(
-        canvas.width,
-        canvas.height
-    )*1.5;
-
-    const x1=defender.x-nx*L;
-    const y1=defender.y-ny*L;
-
-    const x2=defender.x+nx*L;
-    const y2=defender.y+ny*L;
-
-    ctx.beginPath();
-
-    ctx.moveTo(x1,y1);
-    ctx.lineTo(x2,y2);
-
-    ctx.strokeStyle="#ff2222";
-    ctx.lineWidth=Math.max(
-        5,
-        canvas.width/220
-    );
-
-    ctx.stroke();
-
-    /*
-    Himoyachi nuqtasi belgisi
-    */
-
-    ctx.beginPath();
-
-    ctx.arc(
-        defender.x,
-        defender.y,
-        Math.max(10,canvas.width/80),
-        0,
-        Math.PI*2
-    );
-
-    ctx.fillStyle="#ff2222";
-    ctx.fill();
-
-    ctx.strokeStyle="white";
-    ctx.lineWidth=3;
-    ctx.stroke();
-
-    ctx.font=
-    "bold "+Math.max(18,canvas.width/40)+"px Arial";
-
-    ctx.fillStyle="#ff3333";
-
-    ctx.fillText(
-        "HIMOYACHI",
-        defender.x+15,
-        defender.y-15
-    );
-}
-
-
-function checkOffside(){
-
-    if(points.length<6){
-
-        result.innerHTML=
-        "⚠️ Avval barcha 6 ta nuqtani belgilang.";
-
-        result.className="result yellow";
-
-        return;
+      // Belgilangan nuqta (O'yinchi joylashuvi)
+      ctx.beginPath();
+      ctx.arc(lineX, lineY, 6, 0, Math.2 * Math.PI);
+      ctx.fillStyle = 'yellow';
+      ctx.fill();
     }
-
-    const defender=points[4];
-    const attacker=points[5];
-
-    /*
-    Perspektiva yo‘nalishi
-    */
-
-    const p1=points[0];
-    const p2=points[1];
-    const p3=points[2];
-    const p4=points[3];
-
-    const vx=
-        ((p2.x-p1.x)+(p3.x-p4.x))/2;
-
-    const vy=
-        ((p2.y-p1.y)+(p3.y-p4.y))/2;
-
-    const len=Math.sqrt(vx*vx+vy*vy)||1;
-
-    /*
-    Himoyachi -> hujumchi vektori
-    */
-
-    const ax=attacker.x-defender.x;
-    const ay=attacker.y-defender.y;
-
-    /*
-    Cross product orqali
-    qaysi tomonda ekanini aniqlash
-    */
-
-    const cross=
-        vx*ay-vy*ax;
-
-    /*
-    Tolerans:
-    chiziqqa juda yaqin bo‘lsa
-    REVIEW
-    */
-
-    const distance=
-        Math.abs(cross)/len;
-
-    const tolerance=
-        canvas.width*0.008;
-
-    draw();
-
-    /*
-    Hujumchi nuqtasi
-    */
-
-    ctx.beginPath();
-
-    ctx.arc(
-        attacker.x,
-        attacker.y,
-        Math.max(10,canvas.width/80),
-        0,
-        Math.PI*2
-    );
-
-    ctx.fillStyle="#ffd400";
-    ctx.fill();
-
-    ctx.strokeStyle="white";
-    ctx.lineWidth=3;
-    ctx.stroke();
-
-    ctx.font=
-    "bold "+Math.max(18,canvas.width/40)+"px Arial";
-
-    ctx.fillStyle="#ffd400";
-
-    ctx.fillText(
-        "HUJUMCHI",
-        attacker.x+15,
-        attacker.y-15
-    );
-
-
-    if(distance<tolerance){
-
-        result.innerHTML=
-        "🟡 REVIEW<br>" +
-        "<span style='font-size:14px'>" +
-        "Hujumchi chiziqqa juda yaqin. " +
-        "Qo‘lda qayta tekshirish kerak." +
-        "</span>";
-
-        result.className="result yellow";
-
-        return;
-    }
-
-
-    /*
-    Natijani aniqlash
-    */
-
-    if(cross>0){
-
-        result.innerHTML=
-        "🚩 OFFSIDE<br>" +
-        "<span style='font-size:14px'>" +
-        "Hujumchining oldingi nuqtasi " +
-        "himoyachi chizig‘idan oldinda." +
-        "</span>";
-
-        result.className="result red";
-
-    }else{
-
-        result.innerHTML=
-        "✅ NO OFFSIDE<br>" +
-        "<span style='font-size:14px'>" +
-        "Hujumchi himoyachi chizig‘idan oldinda emas." +
-        "</span>";
-
-        result.className="result green";
-    }
-}
-
-
-function undo(){
-
-    if(points.length>0){
-
-        points.pop();
-
-        draw();
-
-        updateInstruction();
-    }
-}
-
-
-function resetAll(){
-
-    points=[];
-    currentStep=0;
-
-    if(img.src){
-        draw();
-    }else{
-        ctx.clearRect(
-            0,
-            0,
-            canvas.width,
-            canvas.height
-        );
-    }
-
-    result.innerHTML=
-    "📷 Avval o‘yin rasmini yuklang.";
-
-    result.className="result";
-}
-
-</script>
+  </script>
 
 </body>
 </html>
